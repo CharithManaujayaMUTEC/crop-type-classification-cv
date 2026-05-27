@@ -4,11 +4,19 @@ from model import build_model
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.utils import to_categorical
 
+# Dataset path (Colab Drive still fine for data)
 DATASET_PATH = "/content/drive/MyDrive/dataset/PlantVillage"
+
+# Save inside repo (IMPORTANT CHANGE)
+MODEL_SAVE_PATH = "models/crop_model.keras"
 
 def train():
     print("Loading dataset...")
     X, y, labels = load_dataset(DATASET_PATH)
+
+    #Safety check (prevents your previous crash)
+    if len(X) == 0:
+        raise ValueError("Dataset is empty. Check DATASET_PATH.")
 
     print("Splitting data...")
     y = to_categorical(y)
@@ -24,6 +32,7 @@ def train():
     model.fit(
         X_train, y_train,
         epochs=10,
+        batch_size=32,  #prevents memory warning
         validation_data=(X_test, y_test)
     )
 
@@ -32,7 +41,14 @@ def train():
     print("Accuracy:", acc)
 
     print("Saving model...")
-    model.save("/content/drive/MyDrive/crop_model.h5")
+
+    # ensure models folder exists
+    os.makedirs("models", exist_ok=True)
+
+    # Save in repo (NOT Drive)
+    model.save(MODEL_SAVE_PATH)
+
+    print(f"Model saved at {MODEL_SAVE_PATH}")
 
 if __name__ == "__main__":
     train()
