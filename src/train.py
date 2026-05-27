@@ -4,7 +4,7 @@ from model import build_model
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.utils import to_categorical
 
-DATASET_PATH = "/content/drive/MyDrive/dataset"
+DATASET_PATH = "/content/drive/MyDrive/dataset/PlantVillage"
 
 def train():
     print("Loading dataset...")
