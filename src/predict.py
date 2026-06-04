@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from tensorflow.keras.models import load_model
+from ndvi import analyze_vegetation
 
 MODEL_PATH = "models/eurosat_model.keras"
 LABELS_PATH = "models/eurosat_labels.npy"
@@ -22,3 +23,15 @@ class_idx = np.argmax(pred)
 
 print("Prediction:", labels[class_idx])
 print("Confidence:", round(pred[class_idx] * 100, 2), "%")
+print("Prediction:", labels[class_idx])
+print("Confidence:", round(pred[class_idx] * 100, 2), "%")
+
+MS_IMAGE_PATH = "/content/drive/MyDrive/dataset/EuroSAT_MS/EuroSAT_MS/Forest/Forest_1.tif"
+
+veg = analyze_vegetation(MS_IMAGE_PATH)
+
+print("\n--- Vegetation Analysis ---")
+print("Average NDVI:", round(veg["avg_ndvi"], 3))
+print("Health:", veg["health"])
+print("Vegetation Regions:", veg["regions"])
+print("Largest Region Area:", veg["largest_area"])
