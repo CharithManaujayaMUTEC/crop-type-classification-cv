@@ -1,0 +1,3 @@
+Number of Regions: 1
+Largest Region Area: 3969.0
+Average Region Area: 3969.0
