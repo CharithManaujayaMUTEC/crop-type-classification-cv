@@ -241,3 +241,75 @@ elif page == "Dataset & Configuration":
         st.success("Configuration ready. Proceed to Step 3: Train Model.")
     else:
         st.warning("Verify the dataset path before training.")
+
+elif page == "Train Model":
+    st.subheader("Train Model")
+
+    cfg   = st.session_state.get("train_cfg", {"epochs": 10, "batch_size": 32, "test_split": 0.2})
+    dpath = st.session_state.get("dataset_path", "")
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Epochs",           cfg["epochs"])
+    col2.metric("Batch Size",       cfg["batch_size"])
+    col3.metric("Validation Split", f"{int(cfg['test_split']*100)}%")
+
+    if not dpath or not os.path.isdir(dpath):
+        st.warning("Dataset path not set. Go back to Step 2 first.")
+        st.stop()
+
+    st.markdown("### 🧠 Computer Vision Training Overview")
+
+    st.code("""
+1. Load satellite images from dataset folders
+2. Resize images to fixed size (64×64)
+3. Normalize pixel values (0–255 → 0–1)
+4. Convert labels into one-hot vectors
+5. Feed images into CNN model
+6. CNN learns spatial features (edges → textures → land patterns)
+7. Output class probabilities using Softmax
+""", language="text")
+
+    st.write("""
+This training process transforms raw satellite images into structured numerical data
+so that a neural network can learn visual patterns for land classification.
+""")
+
+    if st.button("Start Training", type="primary", use_container_width=True):
+        st.session_state["training_done"] = False
+
+        st.markdown("### 🧪 Dataset Loading & Preprocessing")
+
+        with st.spinner("Loading dataset..."):
+            X, y, labels = load_dataset(dpath)
+
+        st.success(f"Loaded {len(X)} images, {len(labels)} classes.")
+
+        st.write("""
+Each image is:
+- Resized to 64×64 pixels
+- Normalized to [0,1]
+- Stored as NumPy arrays for CNN input
+""")
+
+        y_cat = to_categorical(y, num_classes=len(labels))
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y_cat, test_size=cfg["test_split"],
+            random_state=42, stratify=np.argmax(y_cat, axis=1)
+        )
+
+        st.write(f"Train: {len(X_train)}  |  Validation: {len(X_test)}")
+
+        model = build_model(len(labels))
+
+        st.markdown("### 🔥 CNN Feature Learning Explanation")
+
+        st.write("""
+CNN learns hierarchical features:
+
+- Layer 1 → edges (simple patterns)
+- Layer 2 → textures (vegetation, roads)
+- Layer 3 → complex structures (urban, forest, water bodies)
+
+Pooling layers reduce image size while preserving important features.
+""")
