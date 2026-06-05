@@ -385,3 +385,72 @@ Pooling layers reduce image size while preserving important features.
             callbacks=[StreamlitCallback()],
             verbose=0,
         )
+
+        os.makedirs("models", exist_ok=True)
+        os.makedirs(RESULTS_DIR, exist_ok=True)
+
+        model.save(MODEL_PATH)
+        np.save(LABELS_PATH, np.array(labels))
+
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(figsize=(8, 5))
+        ax.plot(history.history["accuracy"], label="Train")
+        ax.plot(history.history["val_accuracy"], label="Validation", linestyle="--")
+        ax.set_title("Model Accuracy")
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel("Accuracy")
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        fig.savefig(f"{RESULTS_DIR}/accuracy_plot.png", dpi=120)
+        plt.close(fig)
+
+        fig, ax = plt.subplots(figsize=(8, 5))
+        ax.plot(history.history["loss"], label="Train")
+        ax.plot(history.history["val_loss"], label="Validation", linestyle="--")
+        ax.set_title("Model Loss")
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel("Loss")
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        fig.savefig(f"{RESULTS_DIR}/loss_plot.png", dpi=120)
+        plt.close(fig)
+
+        import seaborn as sns
+        y_pred = np.argmax(model.predict(X_test, verbose=0), axis=1)
+        y_true = np.argmax(y_test, axis=1)
+
+        cm = confusion_matrix(y_true, y_pred)
+
+        fig, ax = plt.subplots(figsize=(10, 8))
+        sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
+                    xticklabels=labels, yticklabels=labels, ax=ax)
+        ax.set_title("Confusion Matrix (Class Confusion Analysis)")
+        ax.set_xlabel("Predicted Class")
+        ax.set_ylabel("Actual Class")
+        fig.tight_layout()
+        fig.savefig(f"{RESULTS_DIR}/confusion_matrix.png", dpi=120)
+        plt.close(fig)
+
+        final_val_acc = history.history["val_accuracy"][-1]
+
+        st.session_state.update({
+            "training_done": True,
+            "train_history": history.history,
+            "final_val_acc": final_val_acc,
+            "trained_labels": labels,
+        })
+
+        prog_bar.progress(1.0)
+
+        st.success(f"Training complete. Final validation accuracy: {final_val_acc:.4f}")
+
+        st.markdown("### 📊 Training Interpretation (Computer Vision View)")
+
+        st.write("""
+- High accuracy → model learned strong visual patterns
+- Loss reduction → better feature representation
+- Validation accuracy → ability to generalize to unseen images
+- Confusion matrix → which land types look visually similar
+""")
+
+        st.info("Proceed to Step 4: Training Results.")    
