@@ -84,6 +84,14 @@ MODEL_PATH = "models/eurosat_model.keras"
 LABELS_PATH = "models/eurosat_labels.npy"
 RESULTS_DIR = "results"
 
+NAV_ITEMS = [
+    "Project Overview",
+    "Dataset & Configuration",
+    "Train Model",
+    "Training Results",
+    "Predict Image",
+]
+
 if "page" not in st.session_state:
     st.session_state["page"] = "Project Overview"
 
@@ -92,3 +100,12 @@ st.markdown(
     ' &nbsp;|&nbsp; Image Processing & Computer Vision Project</div>',
     unsafe_allow_html=True
 )
+
+cols = st.columns(len(NAV_ITEMS))
+for i, (col, item) in enumerate(zip(cols, NAV_ITEMS)):
+    if col.button(f"{i+1}. {item}", key=f"nav_{i}", use_container_width=True):
+        st.session_state["page"] = item
+
+page = st.session_state["page"]
+st.caption(f"Current page: {page}")
+st.markdown("---")
