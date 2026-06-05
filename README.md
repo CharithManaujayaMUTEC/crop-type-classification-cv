@@ -501,19 +501,6 @@ streamlit run app.py
 
 ---
 
-# Course Learning Outcomes Coverage
-
-| Learning Outcome                         | Coverage |
-| ---------------------------------------- | -------- |
-| LO-1 Image Processing Applications       | ✅       |
-| LO-2 Image Enhancement Techniques        | ✅       |
-| LO-3 Segmentation & Morphology           | ✅       |
-| LO-4 Object Recognition & Classification | ✅       |
-| LO-5 Motion Analysis / Stereo Vision     | ❌       |
-| LO-6 Modern Computer Vision Trends       | ✅       |
-
----
-
 # Future Improvements
 
 - ResNet / EfficientNet architectures
