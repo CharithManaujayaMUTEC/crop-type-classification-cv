@@ -454,3 +454,86 @@ Pooling layers reduce image size while preserving important features.
 """)
 
         st.info("Proceed to Step 4: Training Results.")    
+
+
+
+elif page == "Training Results":
+    st.subheader("Training Results")
+
+    if not st.session_state.get("training_done"):
+        if not os.path.exists(f"{RESULTS_DIR}/accuracy_plot.png"):
+            st.warning("No training run found. Complete Step 3 first.")
+            st.stop()
+        st.info("Showing previously saved figures.")
+
+    history = st.session_state.get("train_history")
+
+    if history:
+        final_acc = history["val_accuracy"][-1]
+        best_acc = max(history["val_accuracy"])
+        final_loss = history["val_loss"][-1]
+        epochs_run = len(history["accuracy"])
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Final Val Accuracy", f"{final_acc*100:.2f}%")
+        c2.metric("Best Val Accuracy",  f"{best_acc*100:.2f}%")
+        c3.metric("Final Val Loss",     f"{final_loss:.4f}")
+        c4.metric("Epochs",             epochs_run)
+
+    st.markdown("---")
+    col_a, col_b = st.columns(2)
+
+    with col_a:
+        st.markdown("**Accuracy**")
+        acc_path = f"{RESULTS_DIR}/accuracy_plot.png"
+        if os.path.exists(acc_path):
+            st.image(acc_path, use_container_width=True)
+        elif history:
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots(figsize=(6, 4))
+            ax.plot(history["accuracy"], label="Train", color="#4a7fcb", linewidth=2)
+            ax.plot(history["val_accuracy"], label="Validation", color="#4a7fcb", linewidth=2, linestyle="--")
+            ax.set_title("Accuracy")
+            ax.legend()
+            ax.grid(True, alpha=0.3)
+            st.pyplot(fig)
+            plt.close(fig)
+
+    with col_b:
+        st.markdown("**Loss**")
+        loss_path = f"{RESULTS_DIR}/loss_plot.png"
+        if os.path.exists(loss_path):
+            st.image(loss_path, use_container_width=True)
+        elif history:
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots(figsize=(6, 4))
+            ax.plot(history["loss"], label="Train", color="#4a7fcb", linewidth=2)
+            ax.plot(history["val_loss"], label="Validation", color="#4a7fcb", linewidth=2, linestyle="--")
+            ax.set_title("Loss")
+            ax.legend()
+            ax.grid(True, alpha=0.3)
+            st.pyplot(fig)
+            plt.close(fig)
+
+    st.markdown("---")
+    st.markdown("**Confusion Matrix**")
+    cm_path = f"{RESULTS_DIR}/confusion_matrix.png"
+    if os.path.exists(cm_path):
+        st.image(cm_path, use_container_width=True)
+    else:
+        st.info("Confusion matrix not found. Re-run training.")
+
+    if history:
+        st.markdown("---")
+        st.markdown("**Epoch Log**")
+        import pandas as pd
+        n = len(history["accuracy"])
+        df = pd.DataFrame({
+            "Epoch":      range(1, n+1),
+            "Train Acc":  [f"{v:.4f}" for v in history["accuracy"]],
+            "Val Acc":    [f"{v:.4f}" for v in history["val_accuracy"]],
+            "Train Loss": [f"{v:.4f}" for v in history["loss"]],
+            "Val Loss":   [f"{v:.4f}" for v in history["val_loss"]],
+        })
+        st.dataframe(df, use_container_width=True, hide_index=True)
+
+    st.info("Proceed to Step 5: Predict Image.")     
