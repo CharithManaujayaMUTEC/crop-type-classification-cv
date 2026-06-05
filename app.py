@@ -9,6 +9,10 @@ import numpy as np
 import cv2
 import streamlit as st
 from PIL import Image
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix
+import tensorflow as tf
+from tensorflow.keras.utils import to_categorical
 from tensorflow.keras import layers, models
 
 st.set_page_config(
@@ -109,3 +113,31 @@ for i, (col, item) in enumerate(zip(cols, NAV_ITEMS)):
 page = st.session_state["page"]
 st.caption(f"Current page: {page}")
 st.markdown("---")
+
+def load_dataset(path):
+    X, y = [], []
+    labels = sorted([d for d in os.listdir(path) if os.path.isdir(os.path.join(path, d))])
+    for idx, label in enumerate(labels):
+        folder = os.path.join(path, label)
+        for fname in os.listdir(folder):
+            fpath = os.path.join(folder, fname)
+            img = cv2.imread(fpath)
+            if img is None:
+                continue
+            img = cv2.resize(img, (IMG_SIZE, IMG_SIZE)).astype("float32") / 255.0
+            X.append(img)
+            y.append(idx)
+    return np.array(X), np.array(y), labels
+
+def build_model(num_classes):
+    model = models.Sequential([
+        layers.Conv2D(32, (3,3), activation="relu", input_shape=(IMG_SIZE, IMG_SIZE, 3)),
+        layers.MaxPooling2D(2, 2),
+        layers.Conv2D(64, (3,3), activation="relu"),
+        layers.MaxPooling2D(2, 2),
+        layers.Flatten(),
+        layers.Dense(128, activation="relu"),
+        layers.Dense(num_classes, activation="softmax"),
+    ])
+    model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
+    return model
