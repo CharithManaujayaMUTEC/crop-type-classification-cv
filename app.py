@@ -6,7 +6,19 @@ Run    : streamlit run app.py
 
 import os
 import io
+import sys
+import tempfile
 import numpy as np
+
+# Allow imports from src/
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+
+try:
+    import rasterio                          # noqa: F401 (used inside analyze_vegetation)
+    from ndvi import analyze_vegetation
+    NDVI_AVAILABLE = True
+except ImportError:
+    NDVI_AVAILABLE = False
 import cv2
 import matplotlib.pyplot as plt
 import matplotlib
@@ -810,3 +822,201 @@ Model Input    : {img_input.shape}
     plt.close(fig)
 
     st.success("Inference complete.")
+
+    # =========================================================
+    # STEP E — MULTISPECTRAL IMAGE UPLOAD (NDVI ANALYSIS)
+    # =========================================================
+    st.markdown("---")
+    st.markdown("**Step E — Multispectral Image Upload (NDVI & Vegetation Analysis)**")
+
+    if not NDVI_AVAILABLE:
+        st.warning(
+            "**rasterio** is not installed. Run `pip install rasterio` then restart "
+            "the app to enable NDVI analysis."
+        )
+    else:
+        st.info(
+            "Optional: upload a Sentinel-2 multispectral `.tif` image "
+            "(same scene as the RGB image above) to run the full NDVI pipeline."
+        )
+
+        tif_uploaded = st.file_uploader(
+            "Select a Sentinel-2 multispectral image (.tif / .tiff)",
+            type=["tif", "tiff"],
+            key="tif_uploader",
+        )
+
+        if tif_uploaded is not None:
+
+            # ---- Pipeline explanation ----
+            st.markdown("**NDVI Processing Pipeline**")
+            st.code("""\
+MULTISPECTRAL IMAGE (.tif)
+   ↓
+EXTRACT RED (B04) + NIR (B08) BANDS
+   ↓
+COMPUTE NDVI  =  (NIR - RED) / (NIR + RED)
+   ↓
+NORMALIZE  →  HISTOGRAM EQUALIZATION  →  GAUSSIAN BLUR
+   ↓
+OTSU THRESHOLDING  +  ADAPTIVE THRESHOLDING
+   ↓
+MORPHOLOGICAL OPENING / CLOSING
+   ↓
+CANNY EDGE DETECTION  +  CONTOUR ANALYSIS
+   ↓
+VEGETATION HEALTH MAP (Stressed / Moderate / Healthy / Dense)
+""", language="text")
+
+            # Save uploaded bytes to a temp file so rasterio can open it
+            with tempfile.NamedTemporaryFile(suffix=".tif", delete=False) as tmp:
+                tmp.write(tif_uploaded.read())
+                tmp_path = tmp.name
+
+            with st.spinner("Running NDVI & vegetation analysis …"):
+                try:
+                    veg = analyze_vegetation(tmp_path)
+                    ndvi_ok = True
+                except Exception as exc:
+                    st.error(f"Vegetation analysis failed: {exc}")
+                    ndvi_ok = False
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
+
+            if ndvi_ok:
+
+                # =====================================================
+                # STEP F — NDVI RESULTS
+                # =====================================================
+                st.markdown("---")
+                st.markdown("**Step F — NDVI & Vegetation Analysis Results**")
+
+                # NDVI Statistics
+                st.markdown("**NDVI Statistics**")
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("Avg NDVI", veg["avg_ndvi"])
+                c2.metric("Std Dev",  veg["std_ndvi"])
+                c3.metric("Max NDVI", veg["max_ndvi"])
+                c4.metric("Min NDVI", veg["min_ndvi"])
+
+                # Vegetation Health
+                st.markdown("**Vegetation Health**")
+                health = veg["health"]
+                if "Dense" in health or ("Healthy" in health and "Stressed" not in health):
+                    st.success(f"Health Status : **{health}**")
+                elif "Moderately" in health:
+                    st.warning(f"Health Status : **{health}**")
+                else:
+                    st.error(f"Health Status : **{health}**")
+
+                # Segmentation Results
+                st.markdown("**Segmentation Results**")
+                c1, c2 = st.columns(2)
+                c1.metric("Otsu Threshold",     veg["otsu_threshold"])
+                c2.metric("Vegetation Regions", veg["regions"])
+
+                # Region Analysis
+                st.markdown("**Region Analysis**")
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("Largest Region Area",  veg["largest_area"])
+                c2.metric("Average Region Area",  veg["average_area"])
+                c3.metric("Total Region Area",    veg["total_region_area"])
+                c4.metric("Average Perimeter",    veg["average_perimeter"])
+
+                # Coverage Analysis
+                st.markdown("**Coverage Analysis**")
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Vegetation Coverage", f"{veg['vegetation_coverage']}%")
+                c2.metric("Vegetation Density",  f"{veg['vegetation_density']}%")
+                c3.metric("Stress Percentage",   f"{veg['stress_percentage']}%")
+
+                # Edge Analysis
+                st.markdown("**Edge Analysis**")
+                st.metric("Edge Pixels", veg["edge_pixels"])
+
+                # =====================================================
+                # STEP G — PIPELINE IMAGES
+                # =====================================================
+                st.markdown("---")
+                st.markdown("**Step G — Generated Pipeline Images**")
+
+                pipeline_images = [
+                    ("01_ndvi.png",                 "01 · NDVI"),
+                    ("02_normalized_ndvi.png",       "02 · Normalized NDVI"),
+                    ("03_histogram_equalized.png",   "03 · Histogram Equalized"),
+                    ("04_gaussian_blur.png",         "04 · Gaussian Blur"),
+                    ("05_otsu_segmentation.png",     "05 · Otsu Segmentation"),
+                    ("06_adaptive_segmentation.png", "06 · Adaptive Segmentation"),
+                    ("07_combined_mask.png",         "07 · Combined Mask"),
+                    ("08_opening.png",               "08 · Morphological Opening"),
+                    ("09_closing.png",               "09 · Morphological Closing"),
+                    ("10_edges.png",                 "10 · Canny Edges"),
+                    ("11_contours.png",              "11 · Contours"),
+                    ("12_health_map.png",            "12 · Vegetation Health Map"),
+                ]
+
+                for row_start in range(0, len(pipeline_images), 3):
+                    row = pipeline_images[row_start : row_start + 3]
+                    cols = st.columns(3)
+                    for col, (fname, title) in zip(cols, row):
+                        fpath = os.path.join(RESULTS_DIR, fname)
+                        if os.path.exists(fpath):
+                            col.image(fpath, caption=f"✓ {title}", use_container_width=True)
+                        else:
+                            col.info(f"⏳ {fname}")
+
+                # =====================================================
+                # FINAL SATELLITE IMAGE ANALYSIS REPORT
+                # =====================================================
+                st.markdown("---")
+                st.markdown("**Final Analysis Report**")
+
+                pipe_list = "".join(
+                    f"  ✓ {fname}\n" for fname, _ in pipeline_images
+                )
+                report = (
+                    f"{'=' * 60}\n"
+                    f"SATELLITE IMAGE ANALYSIS REPORT\n"
+                    f"{'=' * 60}\n\n"
+                    f"CLASSIFICATION RESULTS\n"
+                    f"{'-' * 40}\n"
+                    f"Predicted Class      : {top_class}\n"
+                    f"Confidence           : {confidence:.2f}%\n\n"
+                    f"NDVI STATISTICS\n"
+                    f"{'-' * 40}\n"
+                    f"Average NDVI         : {veg['avg_ndvi']}\n"
+                    f"NDVI Std Dev         : {veg['std_ndvi']}\n"
+                    f"Maximum NDVI         : {veg['max_ndvi']}\n"
+                    f"Minimum NDVI         : {veg['min_ndvi']}\n\n"
+                    f"VEGETATION HEALTH\n"
+                    f"{'-' * 40}\n"
+                    f"Health Status        : {veg['health']}\n\n"
+                    f"SEGMENTATION RESULTS\n"
+                    f"{'-' * 40}\n"
+                    f"Otsu Threshold       : {veg['otsu_threshold']}\n"
+                    f"Vegetation Regions   : {veg['regions']}\n\n"
+                    f"REGION ANALYSIS\n"
+                    f"{'-' * 40}\n"
+                    f"Largest Region Area  : {veg['largest_area']}\n"
+                    f"Average Region Area  : {veg['average_area']}\n"
+                    f"Total Region Area    : {veg['total_region_area']}\n"
+                    f"Average Perimeter    : {veg['average_perimeter']}\n\n"
+                    f"COVERAGE ANALYSIS\n"
+                    f"{'-' * 40}\n"
+                    f"Vegetation Coverage  : {veg['vegetation_coverage']}%\n"
+                    f"Vegetation Density   : {veg['vegetation_density']}%\n"
+                    f"Stress Percentage    : {veg['stress_percentage']}%\n\n"
+                    f"EDGE ANALYSIS\n"
+                    f"{'-' * 40}\n"
+                    f"Edge Pixels          : {veg['edge_pixels']}\n\n"
+                    f"GENERATED PIPELINE IMAGES\n"
+                    f"{'-' * 40}\n"
+                    f"{pipe_list}\n"
+                    f"Analysis Complete.\n"
+                    f"{'=' * 60}"
+                )
+                st.code(report, language="text")
+
+                st.success("Full satellite image analysis complete.")
