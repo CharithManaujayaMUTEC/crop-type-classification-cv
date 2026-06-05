@@ -141,3 +141,44 @@ def build_model(num_classes):
     ])
     model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
     return model
+
+if page == "Project Overview":
+    st.subheader("Project Overview")
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Dataset", "EuroSAT RGB")
+    c2.metric("Total Images", "27,000")
+    c3.metric("Classes", "10")
+    c4.metric("Image Size", "64 x 64 px")
+
+    st.markdown("---")
+    col_a, col_b = st.columns(2)
+
+    with col_a:
+        st.markdown("**Objectives**")
+        st.markdown("""
+- Classify satellite imagery into land-use and vegetation categories
+- Train a CNN on EuroSAT RGB images (10 classes)
+- Evaluate with accuracy/loss curves and confusion matrix
+- Demonstrate Computer Vision in remote sensing
+        """)
+        st.markdown("**CNN Architecture**")
+        st.code("""
+Input (64x64x3)
+  Conv2D  32 filters, 3x3, ReLU
+  MaxPooling2D 2x2
+  Conv2D  64 filters, 3x3, ReLU
+  MaxPooling2D 2x2
+  Flatten
+  Dense   128, ReLU
+  Dense   10,  Softmax
+        """, language="text")
+
+    with col_b:
+        st.markdown("**Land-Cover Classes**")
+        for cls in CLASSES:
+            st.markdown(f"- {cls}")
+        st.markdown("**Technologies**")
+        st.markdown("Python, TensorFlow/Keras, OpenCV, NumPy, Matplotlib, Scikit-learn, Seaborn, Streamlit")
+
+    st.info("Use the navigation buttons above to move through each step.")
