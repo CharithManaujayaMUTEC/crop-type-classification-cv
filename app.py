@@ -5,8 +5,13 @@ Run    : streamlit run app.py
 """
 
 import os
+import io
 import numpy as np
 import cv2
+import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use("Agg")
+import seaborn as sns
 import streamlit as st
 from PIL import Image
 from sklearn.model_selection import train_test_split
@@ -14,6 +19,7 @@ from sklearn.metrics import confusion_matrix
 import tensorflow as tf
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras import layers, models
+
 
 st.set_page_config(
     page_title="EuroSAT · Crop Classification",
@@ -83,8 +89,8 @@ CLASSES = [
     "Industrial", "Pasture", "PermanentCrop", "Residential",
     "River", "SeaLake"
 ]
-IMG_SIZE = 64
-MODEL_PATH = "models/eurosat_model.keras"
+IMG_SIZE    = 64
+MODEL_PATH  = "models/eurosat_model.keras"
 LABELS_PATH = "models/eurosat_labels.npy"
 RESULTS_DIR = "results"
 
@@ -99,12 +105,14 @@ NAV_ITEMS = [
 if "page" not in st.session_state:
     st.session_state["page"] = "Project Overview"
 
+# Top bar
 st.markdown(
     '<div class="topbar"><strong>EuroSAT · Crop Type Classification</strong>'
     ' &nbsp;|&nbsp; Image Processing & Computer Vision Project</div>',
     unsafe_allow_html=True
 )
 
+# Navigation
 cols = st.columns(len(NAV_ITEMS))
 for i, (col, item) in enumerate(zip(cols, NAV_ITEMS)):
     if col.button(f"{i+1}. {item}", key=f"nav_{i}", use_container_width=True):
@@ -114,6 +122,8 @@ page = st.session_state["page"]
 st.caption(f"Current page: {page}")
 st.markdown("---")
 
+
+# ── helpers ──────────────────────────────────
 def load_dataset(path):
     X, y = [], []
     labels = sorted([d for d in os.listdir(path) if os.path.isdir(os.path.join(path, d))])
@@ -129,6 +139,7 @@ def load_dataset(path):
             y.append(idx)
     return np.array(X), np.array(y), labels
 
+
 def build_model(num_classes):
     model = models.Sequential([
         layers.Conv2D(32, (3,3), activation="relu", input_shape=(IMG_SIZE, IMG_SIZE, 3)),
@@ -142,6 +153,10 @@ def build_model(num_classes):
     model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
     return model
 
+
+# ══════════════════════════════════════════════
+#  PAGE 1
+# ══════════════════════════════════════════════
 if page == "Project Overview":
     st.subheader("Project Overview")
 
@@ -184,11 +199,9 @@ Input (64x64x3)
     st.info("Use the navigation buttons above to move through each step.")
 
 
-
-if page == "Project Overview":
-    # ... (previous Project Overview code)
-    pass
-
+# ══════════════════════════════════════════════
+#  PAGE 2
+# ══════════════════════════════════════════════
 elif page == "Dataset & Configuration":
     st.subheader("Dataset & Configuration")
 
@@ -242,6 +255,13 @@ elif page == "Dataset & Configuration":
     else:
         st.warning("Verify the dataset path before training.")
 
+
+# ══════════════════════════════════════════════
+#  PAGE 3
+# ══════════════════════════════════════════════
+# ══════════════════════════════════════════════
+#  PAGE 3
+# ══════════════════════════════════════════════
 elif page == "Train Model":
     st.subheader("Train Model")
 
@@ -257,6 +277,9 @@ elif page == "Train Model":
         st.warning("Dataset path not set. Go back to Step 2 first.")
         st.stop()
 
+    # =========================
+    # 🧠 CV TRAINING EXPLANATION (ADDED)
+    # =========================
     st.markdown("### 🧠 Computer Vision Training Overview")
 
     st.code("""
@@ -277,6 +300,9 @@ so that a neural network can learn visual patterns for land classification.
     if st.button("Start Training", type="primary", use_container_width=True):
         st.session_state["training_done"] = False
 
+        # =========================
+        # DATA LOADING
+        # =========================
         st.markdown("### 🧪 Dataset Loading & Preprocessing")
 
         with st.spinner("Loading dataset..."):
@@ -300,6 +326,9 @@ Each image is:
 
         st.write(f"Train: {len(X_train)}  |  Validation: {len(X_test)}")
 
+        # =========================
+        # MODEL BUILDING
+        # =========================
         model = build_model(len(labels))
 
         st.markdown("### 🔥 CNN Feature Learning Explanation")
@@ -314,20 +343,22 @@ CNN learns hierarchical features:
 Pooling layers reduce image size while preserving important features.
 """)
 
-
+        # =========================
+        # TRAINING VISUALIZATION
+        # =========================
         st.markdown("---")
         st.markdown("**Training Log (Learning Progress)**")
 
-        log_area = st.empty()
-        prog_bar = st.progress(0)
+        log_area  = st.empty()
+        prog_bar  = st.progress(0)
         status_tx = st.empty()
 
-        train_acc_list, val_acc_list = [], []
+        train_acc_list, val_acc_list   = [], []
         train_loss_list, val_loss_list = [], []
         log_lines = []
 
         col_ca, col_cl = st.columns(2)
-        chart_acc = col_ca.empty()
+        chart_acc  = col_ca.empty()
         chart_loss = col_cl.empty()
 
         class StreamlitCallback(tf.keras.callbacks.Callback):
@@ -358,7 +389,7 @@ Pooling layers reduce image size while preserving important features.
                 prog_bar.progress(ep / total_ep)
                 status_tx.write(f"Epoch {ep}/{total_ep} | Validation Accuracy: {va:.4f}")
 
-                import matplotlib.pyplot as plt
+                # Accuracy plot
                 fig, ax = plt.subplots(figsize=(5, 3))
                 ax.plot(train_acc_list, label="Train")
                 ax.plot(val_acc_list, label="Validation", linestyle="--")
@@ -368,6 +399,7 @@ Pooling layers reduce image size while preserving important features.
                 chart_acc.pyplot(fig)
                 plt.close(fig)
 
+                # Loss plot
                 fig, ax = plt.subplots(figsize=(5, 3))
                 ax.plot(train_loss_list, label="Train")
                 ax.plot(val_loss_list, label="Validation", linestyle="--")
@@ -386,13 +418,18 @@ Pooling layers reduce image size while preserving important features.
             verbose=0,
         )
 
+        # =========================
+        # SAVE MODEL
+        # =========================
         os.makedirs("models", exist_ok=True)
         os.makedirs(RESULTS_DIR, exist_ok=True)
 
         model.save(MODEL_PATH)
         np.save(LABELS_PATH, np.array(labels))
 
-        import matplotlib.pyplot as plt
+        # =========================
+        # FINAL PLOTS
+        # =========================
         fig, ax = plt.subplots(figsize=(8, 5))
         ax.plot(history.history["accuracy"], label="Train")
         ax.plot(history.history["val_accuracy"], label="Validation", linestyle="--")
@@ -415,7 +452,9 @@ Pooling layers reduce image size while preserving important features.
         fig.savefig(f"{RESULTS_DIR}/loss_plot.png", dpi=120)
         plt.close(fig)
 
-        import seaborn as sns
+        # =========================
+        # CONFUSION MATRIX
+        # =========================
         y_pred = np.argmax(model.predict(X_test, verbose=0), axis=1)
         y_true = np.argmax(y_test, axis=1)
 
@@ -431,6 +470,9 @@ Pooling layers reduce image size while preserving important features.
         fig.savefig(f"{RESULTS_DIR}/confusion_matrix.png", dpi=120)
         plt.close(fig)
 
+        # =========================
+        # STORE RESULTS
+        # =========================
         final_val_acc = history.history["val_accuracy"][-1]
 
         st.session_state.update({
@@ -444,6 +486,9 @@ Pooling layers reduce image size while preserving important features.
 
         st.success(f"Training complete. Final validation accuracy: {final_val_acc:.4f}")
 
+        # =========================
+        # FINAL CV INTERPRETATION (ADDED)
+        # =========================
         st.markdown("### 📊 Training Interpretation (Computer Vision View)")
 
         st.write("""
@@ -453,10 +498,11 @@ Pooling layers reduce image size while preserving important features.
 - Confusion matrix → which land types look visually similar
 """)
 
-        st.info("Proceed to Step 4: Training Results.")    
+        st.info("Proceed to Step 4: Training Results.")
 
-
-
+# ══════════════════════════════════════════════
+#  PAGE 4
+# ══════════════════════════════════════════════
 elif page == "Training Results":
     st.subheader("Training Results")
 
@@ -469,8 +515,8 @@ elif page == "Training Results":
     history = st.session_state.get("train_history")
 
     if history:
-        final_acc = history["val_accuracy"][-1]
-        best_acc = max(history["val_accuracy"])
+        final_acc  = history["val_accuracy"][-1]
+        best_acc   = max(history["val_accuracy"])
         final_loss = history["val_loss"][-1]
         epochs_run = len(history["accuracy"])
         c1, c2, c3, c4 = st.columns(4)
@@ -488,15 +534,11 @@ elif page == "Training Results":
         if os.path.exists(acc_path):
             st.image(acc_path, use_container_width=True)
         elif history:
-            import matplotlib.pyplot as plt
             fig, ax = plt.subplots(figsize=(6, 4))
-            ax.plot(history["accuracy"], label="Train", color="#4a7fcb", linewidth=2)
+            ax.plot(history["accuracy"],     label="Train",      color="#4a7fcb", linewidth=2)
             ax.plot(history["val_accuracy"], label="Validation", color="#4a7fcb", linewidth=2, linestyle="--")
-            ax.set_title("Accuracy")
-            ax.legend()
-            ax.grid(True, alpha=0.3)
-            st.pyplot(fig)
-            plt.close(fig)
+            ax.set_title("Accuracy"); ax.legend(); ax.grid(True, alpha=0.3)
+            st.pyplot(fig); plt.close(fig)
 
     with col_b:
         st.markdown("**Loss**")
@@ -504,15 +546,11 @@ elif page == "Training Results":
         if os.path.exists(loss_path):
             st.image(loss_path, use_container_width=True)
         elif history:
-            import matplotlib.pyplot as plt
             fig, ax = plt.subplots(figsize=(6, 4))
-            ax.plot(history["loss"], label="Train", color="#4a7fcb", linewidth=2)
+            ax.plot(history["loss"],     label="Train",      color="#4a7fcb", linewidth=2)
             ax.plot(history["val_loss"], label="Validation", color="#4a7fcb", linewidth=2, linestyle="--")
-            ax.set_title("Loss")
-            ax.legend()
-            ax.grid(True, alpha=0.3)
-            st.pyplot(fig)
-            plt.close(fig)
+            ax.set_title("Loss"); ax.legend(); ax.grid(True, alpha=0.3)
+            st.pyplot(fig); plt.close(fig)
 
     st.markdown("---")
     st.markdown("**Confusion Matrix**")
@@ -536,8 +574,18 @@ elif page == "Training Results":
         })
         st.dataframe(df, use_container_width=True, hide_index=True)
 
-    st.info("Proceed to Step 5: Predict Image.")     
+    st.info("Proceed to Step 5: Predict Image.")
 
+
+# ══════════════════════════════════════════════
+#  PAGE 5
+# ══════════════════════════════════════════════
+# =========================
+# PAGE 5 - PREDICT IMAGE
+# =========================
+# ══════════════════════════════════════════════
+#  PAGE 5 - Predict Image (ENHANCED CV VERSION)
+# ══════════════════════════════════════════════
 elif page == "Predict Image":
     st.subheader("Predict Image")
 
@@ -547,12 +595,15 @@ elif page == "Predict Image":
 
     @st.cache_resource
     def load_trained_model():
-        m = tf.keras.models.load_model(MODEL_PATH)
+        m   = tf.keras.models.load_model(MODEL_PATH)
         lbs = list(np.load(LABELS_PATH, allow_pickle=True))
         return m, lbs
 
     model, labels = load_trained_model()
 
+    # =========================
+    # STEP A - INPUT IMAGE
+    # =========================
     st.markdown("**Step A — Upload Image**")
 
     uploaded = st.file_uploader(
@@ -571,14 +622,18 @@ elif page == "Predict Image":
     col_info.write(f"Size: {raw_img.size[0]} x {raw_img.size[1]} px")
     col_info.write(f"Mode: {raw_img.mode}")
 
+    # =========================
+    # STEP B - IMAGE PROCESSING
+    # =========================
     st.markdown("---")
     st.markdown("**Step B — Image Processing (Computer Vision Pipeline)**")
 
-    img_array = np.array(raw_img)
+    img_array   = np.array(raw_img)
     img_resized = cv2.resize(img_array, (IMG_SIZE, IMG_SIZE))
-    img_norm = img_resized.astype("float32") / 255.0
-    img_input = np.expand_dims(img_norm, axis=0)
+    img_norm    = img_resized.astype("float32") / 255.0
+    img_input   = np.expand_dims(img_norm, axis=0)
 
+    # ---- PIPELINE EXPLANATION ----
     st.markdown("**Image Transformation Pipeline**")
     st.code("""
 RAW IMAGE
@@ -594,18 +649,25 @@ TENSOR SHAPE (1, 64, 64, 3)
 CNN CLASSIFICATION
 """, language="text")
 
+    # =========================
+    # ORIGINAL + RESIZE
+    # =========================
     st.markdown("**Original vs Resized Image**")
     col1, col2 = st.columns(2)
     col1.image(raw_img, caption="Original Image", use_container_width=True)
     col2.image(img_resized, caption="Resized (64×64)", use_container_width=True)
 
+    # =========================
+    # FILTERING (CV FEATURE)
+    # =========================
     st.markdown("**Image Filtering (Computer Vision Enhancement)**")
 
     blurred = cv2.GaussianBlur(img_resized, (5, 5), 0)
-    gray = cv2.cvtColor(img_resized, cv2.COLOR_RGB2GRAY)
-    edges = cv2.Canny(gray, 50, 120)
+    gray    = cv2.cvtColor(img_resized, cv2.COLOR_RGB2GRAY)
+    edges   = cv2.Canny(gray, 50, 120)
 
     col1, col2, col3 = st.columns(3)
+
     col1.image(img_resized, caption="Original", use_container_width=True)
     col2.image(blurred, caption="Gaussian Blur", use_container_width=True)
     col3.image(edges, caption="Edge Detection", use_container_width=True)
@@ -615,9 +677,11 @@ Gaussian Blur removes noise and smooths image.
 Edge Detection highlights boundaries (roads, crops, buildings).
 """)
 
+    # =========================
+    # RGB CHANNELS
+    # =========================
     st.markdown("**RGB Channel Analysis**")
 
-    import matplotlib.pyplot as plt
     fig, axes = plt.subplots(1, 3, figsize=(6, 2.5))
     for ci, (name, cmap) in enumerate(zip(["Red","Green","Blue"], ["Reds","Greens","Blues"])):
         axes[ci].imshow(img_resized[:, :, ci], cmap=cmap)
@@ -633,6 +697,9 @@ Green → vegetation
 Blue → water / shadow information  
 """)
 
+    # =========================
+    # HISTOGRAM (IMPORTANT CV PART)
+    # =========================
     st.markdown("**Histogram Analysis (Before vs After Normalization)**")
 
     col1, col2 = st.columns(2)
@@ -651,6 +718,9 @@ Blue → water / shadow information
     col2.pyplot(fig)
     plt.close(fig)
 
+    # =========================
+    # TENSOR INFO
+    # =========================
     st.markdown("**Tensor Preparation**")
 
     st.code(f"""
@@ -661,6 +731,9 @@ Model Input    : {img_input.shape}
 (1 = batch size for CNN)
 """, language="text")
 
+    # =========================
+    # STEP C - INFERENCE
+    # =========================
     st.markdown("---")
     st.markdown("**Step C — Model Inference**")
 
@@ -674,14 +747,17 @@ Model Input    : {img_input.shape}
         st.info("Click Run Inference to get results.")
         st.stop()
 
+    # =========================
+    # STEP D - RESULTS
+    # =========================
     st.markdown("---")
     st.markdown("**Step D — Results**")
 
-    preds = st.session_state["preds"]
-    labels = st.session_state["pred_labels"]
+    preds      = st.session_state["preds"]
+    labels     = st.session_state["pred_labels"]
 
-    top_idx = int(np.argmax(preds))
-    top_class = labels[top_idx]
+    top_idx    = int(np.argmax(preds))
+    top_class  = labels[top_idx]
     confidence = float(preds[top_idx]) * 100
 
     st.markdown(
@@ -693,12 +769,15 @@ Model Input    : {img_input.shape}
 
     st.progress(int(confidence))
 
+    # =========================
+    # TOP-5 RESULTS
+    # =========================
     st.markdown("**Top-5 Predictions**")
 
     sorted_idx = np.argsort(preds)[::-1][:5]
 
     top5_labels = [labels[i] for i in sorted_idx]
-    top5_probs = [preds[i] * 100 for i in sorted_idx]
+    top5_probs  = [preds[i] * 100 for i in sorted_idx]
 
     col1, col2 = st.columns(2)
 
@@ -716,6 +795,9 @@ Model Input    : {img_input.shape}
             "Confidence": [f"{p:.2f}%" for p in top5_probs]
         }))
 
+    # =========================
+    # ALL CLASS DISTRIBUTION
+    # =========================
     st.markdown("**All-Class Probability Distribution**")
 
     fig, ax = plt.subplots(figsize=(10, 3))
