@@ -182,3 +182,62 @@ Input (64x64x3)
         st.markdown("Python, TensorFlow/Keras, OpenCV, NumPy, Matplotlib, Scikit-learn, Seaborn, Streamlit")
 
     st.info("Use the navigation buttons above to move through each step.")
+
+
+
+if page == "Project Overview":
+    # ... (previous Project Overview code)
+    pass
+
+elif page == "Dataset & Configuration":
+    st.subheader("Dataset & Configuration")
+
+    default_path = st.session_state.get("dataset_path", "../DATA_SET/EuroSAT_RGB/EuroSAT_RGB")
+    dataset_path = st.text_input(
+        "Path to EuroSAT_RGB folder (one sub-folder per class)",
+        value=default_path,
+    )
+
+    if st.button("Verify Path"):
+        if os.path.isdir(dataset_path):
+            found = sorted([d for d in os.listdir(dataset_path)
+                            if os.path.isdir(os.path.join(dataset_path, d))])
+            if not found:
+                st.error("No class sub-folders found.")
+            else:
+                st.success(f"Found {len(found)} class folders.")
+                counts = {}
+                for cls in found:
+                    counts[cls] = len([f for f in os.listdir(os.path.join(dataset_path, cls))
+                                       if f.lower().endswith((".jpg", ".png", ".tif"))])
+                st.write(f"Total images: {sum(counts.values())}")
+                c1, c2 = st.columns(2)
+                for i, (cls, cnt) in enumerate(counts.items()):
+                    (c1 if i % 2 == 0 else c2).write(f"{cls}: {cnt}")
+                st.session_state["dataset_path"] = dataset_path
+                st.session_state["dataset_verified"] = True
+        else:
+            st.error(f"Path not found: {dataset_path}")
+            st.session_state["dataset_verified"] = False
+
+    st.markdown("---")
+    st.markdown("**Training Hyperparameters**")
+    col1, col2, col3 = st.columns(3)
+    epochs     = col1.number_input("Epochs",           min_value=1,  max_value=50,  value=10)
+    batch_size = col2.number_input("Batch Size",        min_value=8,  max_value=128, value=32, step=8)
+    test_split = col3.slider(      "Validation Split",  0.1, 0.4, 0.2, 0.05)
+
+    st.session_state["train_cfg"] = {
+        "epochs": int(epochs),
+        "batch_size": int(batch_size),
+        "test_split": float(test_split),
+    }
+
+    st.markdown("---")
+    st.write("Model save path: `models/eurosat_model.keras`")
+    st.write("Results path:    `results/`")
+
+    if st.session_state.get("dataset_verified"):
+        st.success("Configuration ready. Proceed to Step 3: Train Model.")
+    else:
+        st.warning("Verify the dataset path before training.")
