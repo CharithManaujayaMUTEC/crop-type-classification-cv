@@ -313,3 +313,75 @@ CNN learns hierarchical features:
 
 Pooling layers reduce image size while preserving important features.
 """)
+
+
+        st.markdown("---")
+        st.markdown("**Training Log (Learning Progress)**")
+
+        log_area = st.empty()
+        prog_bar = st.progress(0)
+        status_tx = st.empty()
+
+        train_acc_list, val_acc_list = [], []
+        train_loss_list, val_loss_list = [], []
+        log_lines = []
+
+        col_ca, col_cl = st.columns(2)
+        chart_acc = col_ca.empty()
+        chart_loss = col_cl.empty()
+
+        class StreamlitCallback(tf.keras.callbacks.Callback):
+            def on_epoch_end(self, epoch, logs=None):
+                logs = logs or {}
+
+                ta = logs.get("accuracy", 0)
+                va = logs.get("val_accuracy", 0)
+                tl = logs.get("loss", 0)
+                vl = logs.get("val_loss", 0)
+
+                ep = epoch + 1
+                total_ep = cfg["epochs"]
+
+                train_acc_list.append(ta)
+                val_acc_list.append(va)
+                train_loss_list.append(tl)
+                val_loss_list.append(vl)
+
+                log_lines.append(
+                    f"Ep {ep:>2}/{total_ep} | "
+                    f"acc={ta:.4f} | val_acc={va:.4f} | "
+                    f"loss={tl:.4f} | val_loss={vl:.4f}"
+                )
+
+                log_area.code("\n".join(log_lines), language="text")
+
+                prog_bar.progress(ep / total_ep)
+                status_tx.write(f"Epoch {ep}/{total_ep} | Validation Accuracy: {va:.4f}")
+
+                import matplotlib.pyplot as plt
+                fig, ax = plt.subplots(figsize=(5, 3))
+                ax.plot(train_acc_list, label="Train")
+                ax.plot(val_acc_list, label="Validation", linestyle="--")
+                ax.set_title("Accuracy Learning Curve")
+                ax.legend()
+                ax.grid(True, alpha=0.3)
+                chart_acc.pyplot(fig)
+                plt.close(fig)
+
+                fig, ax = plt.subplots(figsize=(5, 3))
+                ax.plot(train_loss_list, label="Train")
+                ax.plot(val_loss_list, label="Validation", linestyle="--")
+                ax.set_title("Loss Learning Curve")
+                ax.legend()
+                ax.grid(True, alpha=0.3)
+                chart_loss.pyplot(fig)
+                plt.close(fig)
+
+        history = model.fit(
+            X_train, y_train,
+            epochs=cfg["epochs"],
+            batch_size=cfg["batch_size"],
+            validation_data=(X_test, y_test),
+            callbacks=[StreamlitCallback()],
+            verbose=0,
+        )
