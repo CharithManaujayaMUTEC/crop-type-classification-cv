@@ -537,3 +537,194 @@ elif page == "Training Results":
         st.dataframe(df, use_container_width=True, hide_index=True)
 
     st.info("Proceed to Step 5: Predict Image.")     
+
+elif page == "Predict Image":
+    st.subheader("Predict Image")
+
+    if not (os.path.exists(MODEL_PATH) and os.path.exists(LABELS_PATH)):
+        st.warning("Trained model not found. Complete Step 3 first.")
+        st.stop()
+
+    @st.cache_resource
+    def load_trained_model():
+        m = tf.keras.models.load_model(MODEL_PATH)
+        lbs = list(np.load(LABELS_PATH, allow_pickle=True))
+        return m, lbs
+
+    model, labels = load_trained_model()
+
+    st.markdown("**Step A — Upload Image**")
+
+    uploaded = st.file_uploader(
+        "Select a satellite image (JPG or PNG). Will be resized to 64x64.",
+        type=["jpg", "jpeg", "png"],
+    )
+
+    if uploaded is None:
+        st.info("Upload an image to begin.")
+        st.stop()
+
+    raw_img = Image.open(uploaded).convert("RGB")
+
+    col_img, col_info = st.columns([1, 2])
+    col_img.image(raw_img, caption="Uploaded image", use_container_width=True)
+    col_info.write(f"Size: {raw_img.size[0]} x {raw_img.size[1]} px")
+    col_info.write(f"Mode: {raw_img.mode}")
+
+    st.markdown("---")
+    st.markdown("**Step B — Image Processing (Computer Vision Pipeline)**")
+
+    img_array = np.array(raw_img)
+    img_resized = cv2.resize(img_array, (IMG_SIZE, IMG_SIZE))
+    img_norm = img_resized.astype("float32") / 255.0
+    img_input = np.expand_dims(img_norm, axis=0)
+
+    st.markdown("**Image Transformation Pipeline**")
+    st.code("""
+RAW IMAGE
+   ↓
+RESIZE (64×64)
+   ↓
+FILTERING (Blur + Edge Detection)
+   ↓
+NORMALIZATION (0–255 → 0–1)
+   ↓
+TENSOR SHAPE (1, 64, 64, 3)
+   ↓
+CNN CLASSIFICATION
+""", language="text")
+
+    st.markdown("**Original vs Resized Image**")
+    col1, col2 = st.columns(2)
+    col1.image(raw_img, caption="Original Image", use_container_width=True)
+    col2.image(img_resized, caption="Resized (64×64)", use_container_width=True)
+
+    st.markdown("**Image Filtering (Computer Vision Enhancement)**")
+
+    blurred = cv2.GaussianBlur(img_resized, (5, 5), 0)
+    gray = cv2.cvtColor(img_resized, cv2.COLOR_RGB2GRAY)
+    edges = cv2.Canny(gray, 50, 120)
+
+    col1, col2, col3 = st.columns(3)
+    col1.image(img_resized, caption="Original", use_container_width=True)
+    col2.image(blurred, caption="Gaussian Blur", use_container_width=True)
+    col3.image(edges, caption="Edge Detection", use_container_width=True)
+
+    st.write("""
+Gaussian Blur removes noise and smooths image.
+Edge Detection highlights boundaries (roads, crops, buildings).
+""")
+
+    st.markdown("**RGB Channel Analysis**")
+
+    import matplotlib.pyplot as plt
+    fig, axes = plt.subplots(1, 3, figsize=(6, 2.5))
+    for ci, (name, cmap) in enumerate(zip(["Red","Green","Blue"], ["Reds","Greens","Blues"])):
+        axes[ci].imshow(img_resized[:, :, ci], cmap=cmap)
+        axes[ci].set_title(name)
+        axes[ci].axis("off")
+
+    st.pyplot(fig)
+    plt.close(fig)
+
+    st.write("""
+Red → soil / roads  
+Green → vegetation  
+Blue → water / shadow information  
+""")
+
+    st.markdown("**Histogram Analysis (Before vs After Normalization)**")
+
+    col1, col2 = st.columns(2)
+
+    fig, ax = plt.subplots()
+    ax.hist(img_resized.flatten(), bins=50)
+    ax.set_title("Before Normalization (0–255)")
+    ax.grid(True)
+    col1.pyplot(fig)
+    plt.close(fig)
+
+    fig, ax = plt.subplots()
+    ax.hist(img_norm.flatten(), bins=50)
+    ax.set_title("After Normalization (0–1)")
+    ax.grid(True)
+    col2.pyplot(fig)
+    plt.close(fig)
+
+    st.markdown("**Tensor Preparation**")
+
+    st.code(f"""
+Original Shape : {img_array.shape}
+Resized Shape  : {img_resized.shape}
+Model Input    : {img_input.shape}
+
+(1 = batch size for CNN)
+""", language="text")
+
+    st.markdown("---")
+    st.markdown("**Step C — Model Inference**")
+
+    if st.button("Run Inference", type="primary", use_container_width=True):
+        with st.spinner("Running inference..."):
+            preds = model.predict(img_input, verbose=0)[0]
+        st.session_state["preds"] = preds
+        st.session_state["pred_labels"] = labels
+
+    if "preds" not in st.session_state:
+        st.info("Click Run Inference to get results.")
+        st.stop()
+
+    st.markdown("---")
+    st.markdown("**Step D — Results**")
+
+    preds = st.session_state["preds"]
+    labels = st.session_state["pred_labels"]
+
+    top_idx = int(np.argmax(preds))
+    top_class = labels[top_idx]
+    confidence = float(preds[top_idx]) * 100
+
+    st.markdown(
+        f'<div class="result-box">'
+        f'Predicted class: <strong>{top_class}</strong><br>'
+        f'Confidence: <strong>{confidence:.2f}%</strong>'
+        f'</div>',
+        unsafe_allow_html=True)
+
+    st.progress(int(confidence))
+
+    st.markdown("**Top-5 Predictions**")
+
+    sorted_idx = np.argsort(preds)[::-1][:5]
+
+    top5_labels = [labels[i] for i in sorted_idx]
+    top5_probs = [preds[i] * 100 for i in sorted_idx]
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        fig, ax = plt.subplots()
+        ax.barh(top5_labels[::-1], top5_probs[::-1], color="#4a7fcb")
+        ax.set_xlabel("Confidence (%)")
+        st.pyplot(fig)
+        plt.close(fig)
+
+    with col2:
+        import pandas as pd
+        st.dataframe(pd.DataFrame({
+            "Class": top5_labels,
+            "Confidence": [f"{p:.2f}%" for p in top5_probs]
+        }))
+
+    st.markdown("**All-Class Probability Distribution**")
+
+    fig, ax = plt.subplots(figsize=(10, 3))
+    ax.bar(labels, preds * 100)
+    ax.tick_params(axis="x", rotation=45)
+    ax.set_ylabel("Confidence (%)")
+    ax.grid(True, axis="y")
+
+    st.pyplot(fig)
+    plt.close(fig)
+
+    st.success("Inference complete.")
