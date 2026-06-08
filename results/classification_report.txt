@@ -1,0 +1,19 @@
+EuroSAT Classification Report
+========================================
+
+                      precision    recall  f1-score   support
+
+          AnnualCrop       0.02      0.02      0.02      3000
+              Forest       0.01      0.00      0.00      3000
+HerbaceousVegetation       0.03      0.03      0.03      3000
+             Highway       0.00      0.00      0.00      2500
+          Industrial       0.93      0.99      0.96      2500
+             Pasture       0.02      0.03      0.02      2000
+       PermanentCrop       0.01      0.01      0.01      2500
+         Residential       0.00      0.00      0.00      3000
+               River       0.91      0.92      0.92      2500
+             SeaLake       0.00      0.00      0.00      3000
+
+            accuracy                           0.19     27000
+           macro avg       0.19      0.20      0.20     27000
+        weighted avg       0.18      0.19      0.18     27000
