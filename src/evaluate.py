@@ -44,7 +44,7 @@ with open("results/classification_report.txt", "w") as f:
 
 print("Saved: results/classification_report.txt")
 
-plt.figure(figsize=(14, 12))  
+plt.figure(figsize=(14, 12))
 
 sns.heatmap(
     cm,
@@ -53,11 +53,11 @@ sns.heatmap(
     cmap="Blues",
     xticklabels=labels,
     yticklabels=labels,
-    linewidths=0.5,       
+    linewidths=0.5,
     linecolor="gray",
     cbar=True,
     square=True,
-    annot_kws={"size": 10}  
+    annot_kws={"size": 10}
 )
 
 plt.title("EuroSAT Confusion Matrix", fontsize=16, pad=20)
@@ -69,14 +69,6 @@ plt.yticks(rotation=0, fontsize=10)
 
 plt.tight_layout()
 plt.savefig("results/confusion_matrix.png", dpi=300)
-plt.show()
-
-plt.title("EuroSAT Confusion Matrix")
-plt.xlabel("Predicted")
-plt.ylabel("Actual")
-
-plt.tight_layout()
-plt.savefig("results/confusion_matrix.png")
 plt.show()
 
 print("Saved: results/confusion_matrix.png")
