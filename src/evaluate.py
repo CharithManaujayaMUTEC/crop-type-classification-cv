@@ -9,7 +9,7 @@ from sklearn.metrics import classification_report
 
 from preprocessing import load_dataset
 
-DATASET_PATH = "D:\\7th semester\\Computer Vision\\project\\data_set\\EuroSAT_RGB\\EuroSAT_RGB"
+DATASET_PATH = "/content/drive/MyDrive/dataset/EuroSAT_RGB/EuroSAT_RGB"
 
 print("Loading dataset...")
 X, y, labels = load_dataset(DATASET_PATH)
