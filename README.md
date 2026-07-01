@@ -14,7 +14,22 @@ The system performs:
 - Morphological processing
 - Edge detection and contour analysis
 - Region-based vegetation analysis
+- Segmentation quality evaluation against ground-truth reference masks
 - Interactive visualization through a Streamlit dashboard
+
+---
+
+## 🚀 Project Highlights
+
+- Hybrid Computer Vision and Deep Learning pipeline
+- CNN-based land-cover classification using the EuroSAT RGB dataset
+- Sentinel-2 multispectral vegetation analysis
+- Complete NDVI processing pipeline
+- Classical image processing for vegetation segmentation
+- Segmentation quality evaluation using ground-truth reference masks
+- Interactive Streamlit dashboard with map-based farm selection
+- Optional satellite image upload for custom analysis
+- Automated vegetation statistics and report generation
 
 ---
 
@@ -46,6 +61,24 @@ The system performs:
 - Region analysis
 - Vegetation health assessment
 
+### Image Processing and Segmentation
+
+- NDVI computation
+- Image normalization
+- Histogram Equalization
+- Gaussian Blur
+- Otsu Thresholding
+- Adaptive Thresholding
+- Mask Fusion
+- Morphological Opening
+- Morphological Closing
+- Edge Detection
+- Contour Detection
+- Vegetation Coverage Analysis
+- Region Extraction
+- Vegetation Health Mapping
+- Segmentation Performance Evaluation
+
 ### Interactive Dashboard
 
 - Dataset exploration
@@ -53,6 +86,8 @@ The system performs:
 - Training visualization
 - Prediction interface
 - NDVI analysis interface
+- Interactive map-based farm selection
+- Optional satellite image upload for custom analysis
 - Automated report generation
 
 ---
@@ -191,6 +226,45 @@ crop-type-classification-cv/
 ├── README.md
 ├── requirements.txt
 └── .gitignore
+```
+
+---
+
+# System Workflow
+
+```text
+Farmer
+   │
+   ▼
+Select Farm on Interactive Map
+   │
+   ├──────────────┐
+   ▼              ▼
+Satellite Image   Upload Own Image (Optional)
+   │
+   ▼
+CNN Land Cover Classification
+   │
+   ▼
+NDVI Generation
+   │
+   ▼
+Image Enhancement
+   │
+   ▼
+Image Segmentation
+   │
+   ▼
+Morphological Processing
+   │
+   ▼
+Contour & Region Analysis
+   │
+   ▼
+Vegetation Health Assessment
+   │
+   ▼
+Interactive Dashboard
 ```
 
 ---
@@ -352,6 +426,32 @@ The system automatically computes:
 
 ---
 
+# Segmentation Evaluation
+
+To validate the image processing module, reference vegetation masks were generated for a representative subset of the Sentinel-2 images.
+
+The segmentation algorithm was evaluated using:
+
+- Pixel Accuracy
+- Intersection over Union (IoU)
+- Dice Coefficient
+- Precision
+- Recall
+- F1 Score
+
+## Average Segmentation Performance
+
+| Metric           |  Score |
+| ---------------- | -----: |
+| Pixel Accuracy   | 78.49% |
+| IoU              | 59.63% |
+| Dice Coefficient | 72.07% |
+| Precision        | 91.55% |
+| Recall           | 64.60% |
+| F1 Score         | 72.07% |
+
+---
+
 # CNN Architecture
 
 ```text
@@ -378,13 +478,22 @@ Softmax Output
 
 # Training Results
 
+## CNN Classification Performance
+
 | Metric              | Value       |
 | ------------------- | ----------- |
 | Dataset             | EuroSAT RGB |
-| Classes             | 10          |
 | Images              | 27,000      |
-| Epochs              | 10          |
+| Classes             | 10          |
 | Validation Accuracy | 82.19%      |
+
+## Image Processing Performance
+
+| Metric         | Value  |
+| -------------- | ------ |
+| Pixel Accuracy | 78.49% |
+| Dice Score     | 72.07% |
+| IoU            | 59.63% |
 
 ---
 
@@ -435,6 +544,21 @@ Stress Percentage    : 20.61%
 
 Edge Pixels          : 479
 ```
+
+---
+
+# Novelty
+
+Unlike conventional satellite image classification systems, this project integrates:
+
+- CNN-based land-cover classification
+- Sentinel-2 multispectral NDVI analysis
+- Classical computer vision techniques for vegetation segmentation
+- Quantitative segmentation evaluation using Pixel Accuracy, IoU and Dice metrics
+- Interactive map-based farm selection with optional image upload
+- Automated vegetation health reporting in a single web application
+
+This combination provides an end-to-end decision support tool for precision agriculture rather than performing only image classification or only vegetation analysis.
 
 ---
 
@@ -491,23 +615,32 @@ streamlit run app.py
 # Applications
 
 - Precision Agriculture
+- Smart Farming
+- Crop Health Monitoring
 - Crop Monitoring
-- Vegetation Health Assessment
 - Land Cover Classification
+- Land Cover Mapping
+- Vegetation Health Assessment
 - Environmental Monitoring
 - Remote Sensing Analysis
-- Smart Farming Systems
+- Agricultural Decision Support
+- Satellite Image Interpretation
+- Farm Management
 - Satellite-Based Decision Support
 
 ---
 
 # Future Improvements
 
+- Live Sentinel-2 API integration
+- Automatic field boundary extraction
+- Time-series crop monitoring
+- Disease detection using multispectral imagery
+- Yield prediction
+- Weather integration
+- GIS export
+- Mobile application
 - ResNet / EfficientNet architectures
-- Real-time Sentinel-2 integration
-- GIS integration
-- Time-series vegetation monitoring
-- Crop disease detection
 - Geospatial visualization dashboard
 - Object detection for agricultural fields
 
@@ -526,8 +659,15 @@ This project demonstrates the integration of:
 - Edge Detection
 - Contour Analysis
 - Region-Based Computer Vision
+- Quantitative Segmentation Evaluation
 
-The system successfully combines classical Image Processing techniques with modern Deep Learning approaches to perform satellite image classification and vegetation health assessment.
+The system successfully combines classical Image Processing techniques with modern Deep Learning approaches to perform satellite image classification and vegetation health assessment, and validates its segmentation quality using standard evaluation metrics (Pixel Accuracy, IoU, Dice Coefficient, Precision, Recall, and F1 Score).
+
+**Project Composition:**
+
+- Computer Vision & Image Processing: ~70–75%
+- Deep Learning: ~20–25%
+- Web Application & Reporting: ~10%
 
 ---
 
@@ -536,7 +676,7 @@ The system successfully combines classical Image Processing techniques with mode
 - Charith Manujaya
 - Tharika Akurana
 - Thurunu Pabasara
-- Team Members
+- Raweesha Peries
 
 ---
 
