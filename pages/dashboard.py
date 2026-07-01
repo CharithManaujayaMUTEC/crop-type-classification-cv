@@ -282,9 +282,6 @@ elif page == "Dataset & Configuration":
 # ══════════════════════════════════════════════
 #  PAGE 3
 # ══════════════════════════════════════════════
-# ══════════════════════════════════════════════
-#  PAGE 3
-# ══════════════════════════════════════════════
 elif page == "Train Model":
     st.subheader("Train Model")
 
@@ -300,45 +297,16 @@ elif page == "Train Model":
         st.warning("Dataset path not set. Go back to Step 2 first.")
         st.stop()
 
-    # =========================
-    # 🧠 CV TRAINING EXPLANATION (ADDED)
-    # =========================
-    st.markdown("### 🧠 Computer Vision Training Overview")
-
-    st.code("""
-1. Load satellite images from dataset folders
-2. Resize images to fixed size (64×64)
-3. Normalize pixel values (0–255 → 0–1)
-4. Convert labels into one-hot vectors
-5. Feed images into CNN model
-6. CNN learns spatial features (edges → textures → land patterns)
-7. Output class probabilities using Softmax
-""", language="text")
-
-    st.write("""
-This training process transforms raw satellite images into structured numerical data
-so that a neural network can learn visual patterns for land classification.
-""")
-
     if st.button("Start Training", type="primary", use_container_width=True):
         st.session_state["training_done"] = False
 
         # =========================
         # DATA LOADING
         # =========================
-        st.markdown("### 🧪 Dataset Loading & Preprocessing")
-
         with st.spinner("Loading dataset..."):
             X, y, labels = load_dataset(dpath)
 
         st.success(f"Loaded {len(X)} images, {len(labels)} classes.")
-
-        st.write("""
-Each image is:
-- Resized to 64×64 pixels
-- Normalized to [0,1]
-- Stored as NumPy arrays for CNN input
-""")
 
         y_cat = to_categorical(y, num_classes=len(labels))
 
@@ -353,18 +321,6 @@ Each image is:
         # MODEL BUILDING
         # =========================
         model = build_model(len(labels))
-
-        st.markdown("### 🔥 CNN Feature Learning Explanation")
-
-        st.write("""
-CNN learns hierarchical features:
-
-- Layer 1 → edges (simple patterns)
-- Layer 2 → textures (vegetation, roads)
-- Layer 3 → complex structures (urban, forest, water bodies)
-
-Pooling layers reduce image size while preserving important features.
-""")
 
         # =========================
         # TRAINING VISUALIZATION
@@ -508,19 +464,6 @@ Pooling layers reduce image size while preserving important features.
         prog_bar.progress(1.0)
 
         st.success(f"Training complete. Final validation accuracy: {final_val_acc:.4f}")
-
-        # =========================
-        # FINAL CV INTERPRETATION (ADDED)
-        # =========================
-        st.markdown("### 📊 Training Interpretation (Computer Vision View)")
-
-        st.write("""
-- High accuracy → model learned strong visual patterns
-- Loss reduction → better feature representation
-- Validation accuracy → ability to generalize to unseen images
-- Confusion matrix → which land types look visually similar
-""")
-
         st.info("Proceed to Step 4: Training Results.")
 
 # ══════════════════════════════════════════════
