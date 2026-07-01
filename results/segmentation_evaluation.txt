@@ -1,0 +1,286 @@
+
+Image : AnnualCrop_1.tif
+
+Pixel Accuracy : 0.7952
+IoU            : 0.6046
+Dice           : 0.7536
+Precision      : 0.9420
+Recall         : 0.6280
+F1 Score       : 0.7536
+
+Image : AnnualCrop_10.tif
+
+Pixel Accuracy : 0.7263
+IoU            : 0.6277
+Dice           : 0.7713
+Precision      : 0.8610
+Recall         : 0.6984
+F1 Score       : 0.7713
+
+Image : AnnualCrop_11.tif
+
+Pixel Accuracy : 0.8599
+IoU            : 0.7204
+Dice           : 0.8375
+Precision      : 0.9641
+Recall         : 0.7402
+F1 Score       : 0.8375
+
+Image : AnnualCrop_12.tif
+
+Pixel Accuracy : 0.8540
+IoU            : 0.7664
+Dice           : 0.8678
+Precision      : 0.8806
+Recall         : 0.8553
+F1 Score       : 0.8678
+
+Image : AnnualCrop_13.tif
+
+Pixel Accuracy : 0.8628
+IoU            : 0.7246
+Dice           : 0.8403
+Precision      : 0.9308
+Recall         : 0.7659
+F1 Score       : 0.8403
+
+Image : AnnualCrop_14.tif
+
+Pixel Accuracy : 0.8481
+IoU            : 0.6873
+Dice           : 0.8147
+Precision      : 0.9820
+Recall         : 0.6960
+F1 Score       : 0.8147
+
+Image : AnnualCrop_15.tif
+
+Pixel Accuracy : 0.6882
+IoU            : 0.3514
+Dice           : 0.5201
+Precision      : 0.8307
+Recall         : 0.3786
+F1 Score       : 0.5201
+
+Image : AnnualCrop_16.tif
+
+Pixel Accuracy : 0.8040
+IoU            : 0.5671
+Dice           : 0.7238
+Precision      : 0.9590
+Recall         : 0.5812
+F1 Score       : 0.7238
+
+Image : AnnualCrop_17.tif
+
+Pixel Accuracy : 0.5898
+IoU            : 0.1139
+Dice           : 0.2045
+Precision      : 0.9515
+Recall         : 0.1146
+F1 Score       : 0.2045
+
+Image : AnnualCrop_18.tif
+
+Pixel Accuracy : 0.5742
+IoU            : 0.1930
+Dice           : 0.3235
+Precision      : 0.9329
+Recall         : 0.1957
+F1 Score       : 0.3235
+
+Image : AnnualCrop_19.tif
+
+Pixel Accuracy : 0.9211
+IoU            : 0.8398
+Dice           : 0.9129
+Precision      : 0.9820
+Recall         : 0.8529
+F1 Score       : 0.9129
+
+Image : AnnualCrop_2.tif
+
+Pixel Accuracy : 0.8364
+IoU            : 0.7872
+Dice           : 0.8810
+Precision      : 0.8299
+Recall         : 0.9387
+F1 Score       : 0.8810
+
+Image : AnnualCrop_20.tif
+
+Pixel Accuracy : 0.7388
+IoU            : 0.4582
+Dice           : 0.6285
+Precision      : 0.8987
+Recall         : 0.4832
+F1 Score       : 0.6285
+
+Image : AnnualCrop_21.tif
+
+Pixel Accuracy : 0.7695
+IoU            : 0.5522
+Dice           : 0.7115
+Precision      : 0.9245
+Recall         : 0.5782
+F1 Score       : 0.7115
+
+Image : AnnualCrop_22.tif
+
+Pixel Accuracy : 0.8616
+IoU            : 0.7466
+Dice           : 0.8550
+Precision      : 0.9543
+Recall         : 0.7743
+F1 Score       : 0.8550
+
+Image : AnnualCrop_23.tif
+
+Pixel Accuracy : 0.7090
+IoU            : 0.4414
+Dice           : 0.6125
+Precision      : 0.9290
+Recall         : 0.4568
+F1 Score       : 0.6125
+
+Image : AnnualCrop_24.tif
+
+Pixel Accuracy : 0.7063
+IoU            : 0.4244
+Dice           : 0.5959
+Precision      : 0.9182
+Recall         : 0.4411
+F1 Score       : 0.5959
+
+Image : AnnualCrop_25.tif
+
+Pixel Accuracy : 0.8704
+IoU            : 0.8415
+Dice           : 0.9139
+Precision      : 0.8989
+Recall         : 0.9294
+F1 Score       : 0.9139
+
+Image : AnnualCrop_26.tif
+
+Pixel Accuracy : 0.7561
+IoU            : 0.4929
+Dice           : 0.6603
+Precision      : 0.9301
+Recall         : 0.5119
+F1 Score       : 0.6603
+
+Image : AnnualCrop_27.tif
+
+Pixel Accuracy : 0.8926
+IoU            : 0.8574
+Dice           : 0.9232
+Precision      : 0.8847
+Recall         : 0.9653
+F1 Score       : 0.9232
+
+Image : AnnualCrop_28.tif
+
+Pixel Accuracy : 0.8752
+IoU            : 0.8172
+Dice           : 0.8994
+Precision      : 0.8891
+Recall         : 0.9100
+F1 Score       : 0.8994
+
+Image : AnnualCrop_29.tif
+
+Pixel Accuracy : 0.7542
+IoU            : 0.4644
+Dice           : 0.6342
+Precision      : 0.9689
+Recall         : 0.4714
+F1 Score       : 0.6342
+
+Image : AnnualCrop_3.tif
+
+Pixel Accuracy : 0.7307
+IoU            : 0.4204
+Dice           : 0.5919
+Precision      : 0.9852
+Recall         : 0.4231
+F1 Score       : 0.5919
+
+Image : AnnualCrop_30.tif
+
+Pixel Accuracy : 0.6536
+IoU            : 0.3585
+Dice           : 0.5278
+Precision      : 0.9987
+Recall         : 0.3587
+F1 Score       : 0.5278
+
+Image : AnnualCrop_4.tif
+
+Pixel Accuracy : 0.5754
+IoU            : 0.1471
+Dice           : 0.2565
+Precision      : 0.9772
+Recall         : 0.1476
+F1 Score       : 0.2565
+
+Image : AnnualCrop_5.tif
+
+Pixel Accuracy : 0.7769
+IoU            : 0.6322
+Dice           : 0.7747
+Precision      : 0.6988
+Recall         : 0.8689
+F1 Score       : 0.7747
+
+Image : AnnualCrop_6.tif
+
+Pixel Accuracy : 0.8584
+IoU            : 0.7865
+Dice           : 0.8805
+Precision      : 0.8801
+Recall         : 0.8808
+F1 Score       : 0.8805
+
+Image : AnnualCrop_7.tif
+
+Pixel Accuracy : 0.8748
+IoU            : 0.8029
+Dice           : 0.8907
+Precision      : 0.8924
+Recall         : 0.8890
+F1 Score       : 0.8907
+
+Image : AnnualCrop_8.tif
+
+Pixel Accuracy : 0.8965
+IoU            : 0.8647
+Dice           : 0.9274
+Precision      : 0.8859
+Recall         : 0.9731
+F1 Score       : 0.9274
+
+Image : AnnualCrop_9.tif
+
+Pixel Accuracy : 0.8862
+IoU            : 0.7980
+Dice           : 0.8877
+Precision      : 0.9029
+Recall         : 0.8729
+F1 Score       : 0.8877
+
+
+======================================================
+FINAL SEGMENTATION RESULTS
+======================================================
+
+Images Evaluated : 30
+
+Pixel Accuracy : 0.7849
+IoU            : 0.5963
+Dice           : 0.7207
+Precision      : 0.9155
+Recall         : 0.6460
+F1 Score       : 0.7207
+
+======================================================

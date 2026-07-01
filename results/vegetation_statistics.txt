@@ -1,0 +1,18 @@
+=======================================================
+  NDVI Vegetation Health Analysis Report
+=======================================================
+  Image analysed : AnnualCrop_1.tif
+  Total pixels   : 4,096
+
+  -- Vegetation Health Classification --------------
+  Healthy Vegetation  (NDVI >= 0.3) :  31.52%  (1,291 px)
+  Moderate Vegetation (0 <= NDVI < 0.3):  68.48%  (2,805 px)
+  Poor / Non-Vegetation (NDVI < 0)   :   0.00%  (0 px)
+
+  -- NDVI Descriptive Statistics ------------------
+  Mean   : 0.2465
+  Median : 0.2291
+  Std    : 0.0781
+  Min    : 0.1366
+  Max    : 0.4521
+=======================================================
