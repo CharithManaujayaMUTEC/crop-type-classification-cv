@@ -3,3 +3,11 @@ opencv-python
 tensorflow
 scikit-learn
 matplotlib
+rasterio
+seaborn
+streamlit-folium
+folium
+sentinelhub
+requests
+oauthlib
+rasterio
