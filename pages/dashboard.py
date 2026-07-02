@@ -9,6 +9,9 @@ import io
 import sys
 import tempfile
 import numpy as np
+import folium
+from folium.plugins import Draw
+from streamlit_folium import st_folium
 
 # Allow imports from src/
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "src"))
@@ -32,12 +35,99 @@ import tensorflow as tf
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras import layers, models
 
+from sentinelhub import SHConfig, SentinelHubRequest, DataCollection, MimeType, BBox, CRS
+import datetime
 
-st.set_page_config(
-    page_title="EuroSAT · Crop Classification",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
+from sentinelhub import SHConfig, SentinelHubRequest, DataCollection, MimeType, BBox, CRS
+import datetime
+
+def download_sentinel_hub_image(bbox, date=None, output_dir="results"):
+    """Download RGB + Multispectral .tif with debugging"""
+    os.makedirs(output_dir, exist_ok=True)
+    
+    config = SHConfig()
+    config.sh_client_id = st.secrets["SH_CLIENT_ID"]
+    config.sh_client_secret = st.secrets["SH_CLIENT_SECRET"]
+
+    if date is None:
+        date = datetime.date.today()
+    time_interval = (
+        (date - datetime.timedelta(days=45)).isoformat() + "T00:00:00Z",
+        (date + datetime.timedelta(days=5)).isoformat() + "T23:59:59Z"
+    )
+
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # 1. RGB
+    evalscript_rgb = """
+    //VERSION=3
+    function setup() { return { input: [{ bands: ["B02", "B03", "B04"] }], output: { bands: 3 } }; }
+    function evaluatePixel(sample) {
+        return [sample.B04 * 3.5, sample.B03 * 3.5, sample.B02 * 3.5];
+    }
+    """
+
+    request_rgb = SentinelHubRequest(
+        evalscript=evalscript_rgb,
+        input_data=[{"dataFilter": {"timeRange": {"from": time_interval[0], "to": time_interval[1]}, "maxCloudCoverage": 30},
+                     "type": "S2L2A"}],
+        responses=[SentinelHubRequest.output_response("default", MimeType.PNG)],
+        bbox=BBox(bbox=bbox, crs=CRS.WGS84),
+        size=(1024, 1024),
+        config=config
+    )
+
+    rgb_data = request_rgb.get_data()[0]
+    rgb_path = os.path.join(output_dir, f"sentinel_rgb_{timestamp}.png")
+    Image.fromarray(rgb_data).save(rgb_path)
+
+    # 2. Multispectral .tif
+    evalscript_tif = """
+    //VERSION=3
+    function setup() {
+        return {
+            input: [{ bands: ["B02", "B03", "B04", "B05", "B08", "B11"] }],
+            output: { bands: 6, sampleType: "FLOAT32" }
+        };
+    }
+    function evaluatePixel(sample) {
+        return [sample.B02, sample.B03, sample.B04, sample.B05, sample.B08, sample.B11];
+    }
+    """
+
+    request_tif = SentinelHubRequest(
+        evalscript=evalscript_tif,
+        input_data=[{"dataFilter": {"timeRange": {"from": time_interval[0], "to": time_interval[1]}, "maxCloudCoverage": 30},
+                     "type": "S2L2A"}],
+        responses=[SentinelHubRequest.output_response("default", MimeType.TIFF)],
+        bbox=BBox(bbox=bbox, crs=CRS.WGS84),
+        size=(1024, 1024),
+        config=config
+    )
+
+    tif_data = request_tif.get_data()[0]
+    tif_path = os.path.join(output_dir, f"sentinel_multispectral_{timestamp}.tif")
+
+    try:
+        import rasterio
+        from rasterio.transform import from_bounds
+        
+        transform = from_bounds(bbox[0], bbox[1], bbox[2], bbox[3], tif_data.shape[1], tif_data.shape[0])
+        
+        with rasterio.open(
+            tif_path, 'w', driver='GTiff',
+            height=tif_data.shape[0], width=tif_data.shape[1],
+            count=6, dtype='float32', crs='EPSG:4326', transform=transform
+        ) as dst:
+            for i in range(6):
+                dst.write(tif_data[:, :, i], i+1)
+        
+        st.success(f"✅ Multispectral .tif saved: {os.path.basename(tif_path)}")
+    except Exception as e:
+        st.error(f"Failed to save .tif: {e}")
+        tif_path = None
+
+    return rgb_path, tif_path
 
 st.markdown("""
 <style>
@@ -603,10 +693,19 @@ elif page == "Predict Image":
     model, labels = load_trained_model()
 
     # ══════════════════════════════════════════
+    #  MAIN TABS
+    # ══════════════════════════════════════════
+    #st.subheader("Predict Image")
+
+    tab_map, tab_upload = st.tabs([
+        "🛰 Select Area on Map", 
+        "📤 Upload Local Images"
+    ])
+    # ══════════════════════════════════════════
     #  UPLOAD — both files side by side
     # ══════════════════════════════════════════
-    st.subheader("Predict Image")
-
+    #st.subheader("Predict Image")
+with tab_upload:
     up_col, tif_col = st.columns(2)
 
     with up_col:
@@ -618,7 +717,7 @@ elif page == "Predict Image":
         )
 
     with tif_col:
-        st.markdown("**2 · Multispectral .tif** *(optional — for vegetation health)*")
+        st.markdown("**2 · Multispectral .tif** *upload the tif version of the satellite image*")
         if NDVI_AVAILABLE:
             tif_uploaded = st.file_uploader(
                 ".tif / .tiff",
@@ -938,3 +1037,419 @@ elif page == "Predict Image":
                 f"{'='*60}"
             )
             st.code(report, language="text")
+# ====================== MAP TAB ======================
+with tab_map:
+    st.markdown("### 🗺️ Select Farm Area")
+    st.caption("Draw rectangle → Download Sentinel-2 → Full Analysis")
+
+    m = folium.Map(
+        location=[7.0, 80.0],
+        zoom_start=13,
+        tiles="OpenStreetMap",
+        control_scale=True
+    )
+
+    Draw(
+        draw_options={
+            "polyline": False,
+            "polygon": False,
+            "circle": False,
+            "marker": False,
+            "circlemarker": False,
+            "rectangle": True
+        },
+        edit_options={"edit": True, "remove": True}
+    ).add_to(m)
+
+    map_data = st_folium(m, width="100%", height=500, returned_objects=["all_drawings"])
+
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        selected_date = st.date_input("Preferred Image Date", value=None)
+    with col2:
+        download_btn = st.button("📥 Download Sentinel-2 Image", 
+                               use_container_width=True, type="primary")
+
+    if "map_rgb_path" not in st.session_state:
+        st.session_state["map_rgb_path"] = None
+        st.session_state["map_tif_path"] = None
+
+    if download_btn:
+        if not map_data or not map_data.get("all_drawings"):
+            st.error("❌ Please draw a rectangle first!")
+        else:
+            try:
+                drawing = map_data["all_drawings"][-1]
+                coords = drawing["geometry"]["coordinates"][0]
+                bbox = [min(p[0] for p in coords), min(p[1] for p in coords),
+                        max(p[0] for p in coords), max(p[1] for p in coords)]
+
+                with st.spinner("Downloading RGB + Multispectral .tif..."):
+                    rgb_path, tif_path = download_sentinel_hub_image(bbox, selected_date, RESULTS_DIR)
+
+                st.session_state["map_rgb_path"] = rgb_path
+                st.session_state["map_tif_path"] = tif_path
+                st.success("✅ Download complete!")
+            except Exception as e:
+                st.error(f"Download failed: {e}")
+
+    # Display downloaded image
+    if st.session_state.get("map_rgb_path") and os.path.exists(st.session_state["map_rgb_path"]):
+        st.image(st.session_state["map_rgb_path"], caption="Downloaded Sentinel-2 Image", use_container_width=True)
+
+        if st.button("🔍 Analyse This Image", type="primary", use_container_width=True):
+            rgb_path = st.session_state["map_rgb_path"]
+            tif_path = st.session_state.get("map_tif_path")
+
+            # Land Classification
+            raw_img = Image.open(rgb_path).convert("RGB")
+            img_array = np.array(raw_img)
+            img_resized = cv2.resize(img_array, (IMG_SIZE, IMG_SIZE))
+            img_norm = img_resized.astype("float32") / 255.0
+            img_input = np.expand_dims(img_norm, axis=0)
+
+            with st.spinner("Classifying land type..."):
+                preds = model.predict(img_input, verbose=0)[0]
+
+            st.session_state["map_preds"] = preds
+            st.session_state["map_pred_labels"] = labels
+            st.session_state["map_image"] = raw_img
+
+            # Vegetation Analysis
+# Vegetation Analysis
+            if tif_path and os.path.exists(tif_path) and NDVI_AVAILABLE:
+                with st.spinner("Running full vegetation analysis..."):
+                    try:
+                        st.session_state["map_veg"] = analyze_vegetation(tif_path)
+                        st.session_state["map_veg_ok"] = True
+                        st.session_state["map_veg_err"] = None
+                    except Exception as e:
+                        st.session_state["map_veg_ok"] = False
+                        st.session_state["map_veg_err"] = f"analyze_vegetation() raised: {e}"
+            else:
+                st.session_state["map_veg_ok"] = False
+                st.session_state["map_veg_err"] = (
+                    f"Gate failed — tif_path: {tif_path!r}, "
+                    f"exists: {os.path.exists(tif_path) if tif_path else 'N/A'}, "
+                    f"NDVI_AVAILABLE: {NDVI_AVAILABLE}"
+                )
+            st.success("✅ Full Analysis Complete!")
+            st.rerun()
+
+    # ====================== FULL RESULTS DISPLAY ======================
+    if "map_preds" in st.session_state:
+        preds = st.session_state["map_preds"]
+        labels = st.session_state["map_pred_labels"]
+        top_idx = int(np.argmax(preds))
+        top_class = labels[top_idx]
+        confidence = float(preds[top_idx]) * 100
+        emoji, friendly_name, description = CLASS_INFO.get(top_class, ("📍", top_class, ""))
+        color = conf_color(confidence)
+
+        st.markdown("---")
+        st.markdown("### 🗺️ Land Type Classification")
+
+        st.markdown(
+            f"""
+            <div style="background:#f4f8ff;border-left:6px solid {color};
+                        border-radius:8px;padding:20px 24px;margin-bottom:12px;">
+              <div style="font-size:40px;line-height:1.1">{emoji}</div>
+              <div style="font-size:28px;font-weight:700;color:#1a3a6b">{friendly_name}</div>
+              <div style="font-size:13px;color:#555">{description}</div>
+              <div style="font-size:20px;font-weight:600;color:{color}">{confidence:.1f}% confident</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("**Other possibilities**")
+        sorted_all = np.argsort(preds)[::-1]
+        alt_idx = [i for i in sorted_all if i != top_idx][:3]
+        c1, c2, c3 = st.columns(3)
+        for col, idx in zip([c1, c2, c3], alt_idx):
+            lbl = labels[idx]
+            prob = float(preds[idx]) * 100
+            em, nm, _ = CLASS_INFO.get(lbl, ("", lbl, ""))
+            col.metric(f"{em} {nm}", f"{prob:.1f}%")
+# ── full confidence breakdown (expander) ──
+        with st.expander("📊  View confidence breakdown for all 10 land types"):
+            chart_labels = [f"{CLASS_INFO.get(l,('','',l,''))[0]} {CLASS_INFO.get(l,('',l,''))[1]}"
+                            for l in labels]
+            bar_colors   = [color if i == top_idx else "#4a7fcb" for i in range(len(labels))]
+            fig, ax = plt.subplots(figsize=(10, 3))
+            bars = ax.bar(chart_labels, preds * 100, color=bar_colors)
+            ax.set_ylabel("Confidence (%)")
+            ax.set_ylim(0, 110)
+            ax.tick_params(axis="x", rotation=40, labelsize=8)
+            ax.grid(axis="y", alpha=0.3)
+            ax.spines[["top","right"]].set_visible(False)
+            ax.bar_label(bars,
+                         labels=[f"{v*100:.0f}%" if v*100 > 2 else "" for v in preds],
+                         fontsize=8, padding=2)
+            fig.tight_layout()
+            st.pyplot(fig)
+            plt.close(fig)
+
+            st.dataframe(
+                pd.DataFrame({
+                    "Land Type":   chart_labels,
+                    "Confidence":  [f"{float(preds[i])*100:.2f}%" for i in range(len(labels))],
+                }).sort_values("Confidence", ascending=False).reset_index(drop=True),
+                use_container_width=True,
+                hide_index=True,
+            )
+        # ====================== VEGETATION SECTION ======================
+        st.markdown("---")
+        st.markdown("### 🌿 Vegetation Health Analysis")
+
+        veg_ok = st.session_state.get("map_veg_ok", False)
+
+        if not veg_ok:
+                    st.info("No .tif file — only land classification completed.")
+                    if st.session_state.get("map_veg_err"):
+                        st.error(f"🔍 Debug: {st.session_state['map_veg_err']}")
+        else:
+            veg = st.session_state["map_veg"]
+            health = veg["health"]
+            ndvi_val = veg["avg_ndvi"]
+            cov = veg["vegetation_coverage"]
+            dense = veg["vegetation_density"]
+            stress = veg["stress_percentage"]
+
+            hlabel, hcolor, hbg = HEALTH_GUIDE.get(health, ("Unknown", "#555", "#fafafa"))
+
+            st.markdown(f"""
+                <div style="background:{hbg};border-left:6px solid {hcolor};
+                            border-radius:8px;padding:16px 20px;margin-bottom:16px;">
+                  <div style="font-size:22px;font-weight:700;color:{hcolor}">{hlabel}</div>
+                  <div>NDVI Score: <strong>{ndvi_val:.2f}</strong></div>
+                  {ndvi_bar_html(ndvi_val, -1.0, 1.0, hcolor)}
+                </div>
+            """, unsafe_allow_html=True)
+
+            if ndvi_val >= 0.6:
+                summary = "The vegetation in this area is **lush and thriving**."
+            elif ndvi_val >= 0.4:
+                summary = "The vegetation is **moderately healthy**."
+            elif ndvi_val >= 0.2:
+                summary = "The vegetation is **under stress**."
+            else:
+                summary = "**Little or no healthy vegetation** detected."
+
+            st.markdown(f"{summary} Coverage: **{cov:.0f}%**, Dense: **{dense:.0f}%**, Stress: **{stress:.0f}%**")
+
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("NDVI Score", f"{ndvi_val:.2f}")
+            m2.metric("Vegetation Coverage", f"{cov:.1f}%")
+            m3.metric("Dense Cover", f"{dense:.1f}%")
+            m4.metric("Stress Level", f"{stress:.1f}%")
+
+            with st.expander("🔬 Detailed vegetation statistics"):
+                s1, s2 = st.columns(2)
+                s1.metric("Otsu Threshold", veg["otsu_threshold"])
+                s2.metric("Vegetation Regions", veg["regions"])
+
+                r1, r2, r3, r4 = st.columns(4)
+                r1.metric("Largest Region", f"{veg['largest_area']:.0f} px²")
+                r2.metric("Average Region", f"{veg['average_area']:.0f} px²")
+                r3.metric("Total Area", f"{veg['total_region_area']:.0f} px²")
+                r4.metric("Avg Perimeter", f"{veg['average_perimeter']:.0f} px")
+
+                nd1, nd2, nd3, nd4 = st.columns(4)
+                nd1.metric("Mean NDVI", veg["avg_ndvi"])
+                nd2.metric("Std Dev", veg["std_ndvi"])
+                nd3.metric("Max NDVI", veg["max_ndvi"])
+                nd4.metric("Min NDVI", veg["min_ndvi"])
+
+            pipeline_images = [
+                ("01_ndvi.png", "NDVI"), ("02_normalized_ndvi.png", "Normalized NDVI"),
+                ("03_histogram_equalized.png", "Histogram Equalized"), ("04_gaussian_blur.png", "Gaussian Blur"),
+                ("05_otsu_segmentation.png", "Otsu Segmentation"), ("06_adaptive_segmentation.png", "Adaptive Segmentation"),
+                ("07_combined_mask.png", "Combined Mask"), ("08_opening.png", "Morphological Opening"),
+                ("09_closing.png", "Morphological Closing"), ("10_edges.png", "Canny Edges"),
+                ("11_contours.png", "Contours"), ("12_health_map.png", "Vegetation Health Map"),
+            ]
+
+            with st.expander("🖼️ View all 12 processing pipeline images"):
+                for row_start in range(0, len(pipeline_images), 3):
+                    row = pipeline_images[row_start:row_start + 3]
+                    cols = st.columns(3)
+                    for col, (fname, title) in zip(cols, row):
+                        fpath = os.path.join(RESULTS_DIR, fname)
+                        if os.path.exists(fpath):
+                            col.image(fpath, caption=title, use_container_width=True)
+                        else:
+                            col.caption(f"⏳ {fname} not generated")
+            # ── full text report (expander) ────────
+            with st.expander("📋  Full analysis report"):
+                pipe_list = "".join(f"  ✓ {f}\n" for f, _ in pipeline_images)
+                report = (
+                    f"{'='*60}\n"
+                    f"SATELLITE IMAGE ANALYSIS REPORT\n"
+                    f"{'='*60}\n\n"
+                    f"CLASSIFICATION RESULTS\n{'-'*40}\n"
+                    f"Predicted Class      : {friendly_name}\n"
+                    f"Confidence           : {confidence:.2f}%\n\n"
+                    f"NDVI STATISTICS\n{'-'*40}\n"
+                    f"Average NDVI         : {veg['avg_ndvi']}\n"
+                    f"NDVI Std Dev         : {veg['std_ndvi']}\n"
+                    f"Maximum NDVI         : {veg['max_ndvi']}\n"
+                    f"Minimum NDVI         : {veg['min_ndvi']}\n\n"
+                    f"VEGETATION HEALTH\n{'-'*40}\n"
+                    f"Health Status        : {health}\n\n"
+                    f"SEGMENTATION RESULTS\n{'-'*40}\n"
+                    f"Otsu Threshold       : {veg['otsu_threshold']}\n"
+                    f"Vegetation Regions   : {veg['regions']}\n\n"
+                    f"REGION ANALYSIS\n{'-'*40}\n"
+                    f"Largest Region Area  : {veg['largest_area']}\n"
+                    f"Average Region Area  : {veg['average_area']}\n"
+                    f"Total Region Area    : {veg['total_region_area']}\n"
+                    f"Average Perimeter    : {veg['average_perimeter']}\n\n"
+                    f"COVERAGE ANALYSIS\n{'-'*40}\n"
+                    f"Vegetation Coverage  : {cov}%\n"
+                    f"Vegetation Density   : {dense}%\n"
+                    f"Stress Percentage    : {stress}%\n\n"
+                    f"EDGE ANALYSIS\n{'-'*40}\n"
+                    f"Edge Pixels          : {veg['edge_pixels']}\n\n"
+                    f"GENERATED PIPELINE IMAGES\n{'-'*40}\n"
+                    f"{pipe_list}\n"
+                    f"Analysis Complete.\n"
+                    f"{'='*60}"
+                )
+                st.code(report, language="text")
+
+    if st.button("🔄 Analyse Another Area"):
+        for key in list(st.session_state.keys()):
+            if key.startswith("map_"):
+                st.session_state.pop(key, None)
+        st.rerun()
+# with tab_map:
+#     st.markdown("### 🗺️ Select Farm Area")
+#     st.caption("Draw a rectangle → Automatically download real Sentinel-2 imagery")
+
+#     m = folium.Map(
+#         location=[7.0, 80.0],
+#         zoom_start=13,
+#         tiles="OpenStreetMap",
+#         control_scale=True
+#     )
+
+#     Draw(
+#         draw_options={
+#             "polyline": False,
+#             "polygon": False,
+#             "circle": False,
+#             "marker": False,
+#             "circlemarker": False,
+#             "rectangle": True
+#         },
+#         edit_options={"edit": True, "remove": True}
+#     ).add_to(m)
+
+#     map_data = st_folium(m, width="100%", height=650, returned_objects=["all_drawings"])
+
+#     col1, col2 = st.columns([3, 1])
+#     with col1:
+#         selected_date = st.date_input("Preferred Image Date", value=None)
+#     with col2:
+#         download_btn = st.button("📥 Download Sentinel-2 Image", 
+#                                use_container_width=True, 
+#                                type="primary")
+
+#     if download_btn:
+#         if not map_data or not map_data.get("all_drawings"):
+#             st.error("❌ Please draw a rectangle on the map first!")
+#             st.stop()
+
+#         try:
+#             # Extract bbox
+#             drawing = map_data["all_drawings"][-1]
+#             coords = drawing["geometry"]["coordinates"][0]
+#             lons = [p[0] for p in coords]
+#             lats = [p[1] for p in coords]
+#             bbox = [min(lons), min(lats), max(lons), max(lats)]
+
+#             st.success(f"✅ Area selected: {bbox}")
+
+#             with st.spinner("Connecting to Sentinel Hub and downloading image..."):
+#                 rgb_path, tif_path = download_sentinel_hub_image(
+#                     bbox=bbox,
+#                     date=selected_date,
+#                     output_dir=RESULTS_DIR
+#                 )
+
+#             if rgb_path and os.path.exists(rgb_path):
+#                 st.image(rgb_path, caption="Downloaded Sentinel-2 RGB Image", use_container_width=True)
+
+#                 if st.button("🔍 Analyse This Image", type="primary", use_container_width=True):
+#                     raw_img = Image.open(rgb_path).convert("RGB")
+#                     img_array = np.array(raw_img)
+#                     img_resized = cv2.resize(img_array, (IMG_SIZE, IMG_SIZE))
+#                     img_norm = img_resized.astype("float32") / 255.0
+#                     img_input = np.expand_dims(img_norm, axis=0)
+
+#                     with st.spinner("Classifying land type..."):
+#                         preds = model.predict(img_input, verbose=0)[0]
+
+#                     st.session_state["preds"] = preds
+#                     st.session_state["pred_labels"] = labels
+#                     st.session_state["current_image"] = raw_img
+
+#                     # Vegetation Analysis
+#                     if tif_path and os.path.exists(tif_path) and NDVI_AVAILABLE:
+#                         with st.spinner("Analysing vegetation health..."):
+#                             try:
+#                                 st.session_state["veg"] = analyze_vegetation(tif_path)
+#                                 st.session_state["veg_ok"] = True
+#                             except Exception as e:
+#                                 st.session_state["veg_ok"] = False
+#                                 st.error(f"Vegetation analysis failed: {e}")
+#                     else:
+#                         st.session_state["veg_ok"] = False
+
+#                     st.success("✅ Analysis Complete! Results are ready.")
+#                     st.rerun()
+#             else:
+#                 st.error("Failed to download image.")
+#         except Exception as e:
+#             st.error(f"❌ Error: {str(e)}")
+# with tab_map:
+#         st.markdown("### Select Farm Area")
+#         st.caption("Draw a rectangle around the field to retrieve Sentinel-2 imagery.")
+
+#         m = folium.Map(
+#             location=[6.9271, 79.8612],
+#             zoom_start=15,
+#             control_scale=True
+#         )
+
+#         Draw(
+#             draw_options={
+#                 "polyline": False,
+#                 "polygon": False,
+#                 "circle": False,
+#                 "marker": False,
+#                 "circlemarker": False,
+#                 "rectangle": True
+#             }
+#         ).add_to(m)
+
+#         map_data = st_folium(m, width=1200, height=550)
+
+#         col1, col2 = st.columns([1, 1])
+#         with col1:
+#             selected_date = st.date_input("Image Date", value=None)
+#         with col2:
+#             download_btn = st.button("📥 Download Sentinel Image", 
+#                                    use_container_width=True, 
+#                                    type="primary")
+
+#         if download_btn:
+#             if map_data and map_data.get("all_drawings"):
+#                 st.success("✅ Rectangle received! (Sentinel download logic will go here)")
+#                 # TODO: Extract bbox → call Sentinel Hub → save image → run prediction
+#                 st.info("Image will appear here once downloaded.")
+#             else:
+#                 st.warning("Please draw a rectangle on the map first.")
+
+#         st.info("Downloaded image will appear here before running prediction.")
